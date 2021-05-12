@@ -2,7 +2,7 @@
 attachments: [Clipboard_2021-05-12-21-17-35.png, Clipboard_2021-05-12-21-21-58.png]
 title: Kafka API使用
 created: '2021-05-11T15:07:24.021Z'
-modified: '2021-05-12T14:37:37.549Z'
+modified: '2021-05-12T16:26:21.529Z'
 ---
 
 # Kafka API使用
@@ -12,37 +12,37 @@ Kafka常用API介绍
 
 ### KafkaAdminClient
 AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG：Kafka服务器地址。
-- create(Properties props)：创建一个Kafka客户端连接。
-- listTopics()：获取所有的topic主题。
-- createTtopics(Collection\<NewTopic\> topics)：批量创建topic。这个方法是一个**异步**方法，所以我们创建后的主题无法立刻查询到。可以使用创建后的主题结果createTopicResult.all().get()来同步等待主题的创建。
-- deleteTopics(Collection\<String\> topics)：批量删除topic。也是异步方法，同理也可以**同步**去等待执行完成。
-- describeTopics(Collection\<String\> topics)：批量查看topic的详细信息。得到一个DescribeTopicsResult。
-- close()：关闭连接。
+> - create(Properties props)：创建一个Kafka客户端连接。
+> - listTopics()：获取所有的topic主题。
+> - createTtopics(Collection\<NewTopic\> topics)：批量创建topic。这个方法是一个**异步**方法，所以我们创建后的主题无法立刻查询到。可以使用创建后的主题结果createTopicResult.all().get()来同步等待主题的创建。
+> - deleteTopics(Collection\<String\> topics)：批量删除topic。也是异步方法，同理也可以**同步**去等待执行完成。
+> - describeTopics(Collection\<String\> topics)：批量查看topic的详细信息。得到一个DescribeTopicsResult。
+> - close()：关闭连接。
 
 ### KafkaProducer
 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG：Kafka服务器地址，作为生产者使用。
 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG：key的序列化方式，可以**自定义实现序列化方式**。
 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG：value的序列化方式，可以**自定义实现序列化方式**。
 ProducerConfig.PARTITION_CLASS_CONFIG：自定义分区，需要**实现Partitioner接口**。生产者投递消息时，默认是采用轮询的方式投递消息。
-- 构造：构造出将准备向某一个topic投递的生产者。
-- send(ProducerRecord\<String, String\> record)：发送一个消息，消息有不同的构造，可以自己定义key,value和时间戳。
-- flush()：清理数据发送缓冲区。
-- close()：关闭生产者连接。
+> - 构造：构造出将准备向某一个topic投递的生产者。
+> - send(ProducerRecord\<String, String\> record)：发送一个消息，消息有不同的构造，可以自己定义key,value和时间戳。
+> - flush()：清理数据发送缓冲区。
+> - close()：关闭生产者连接。
 
 ### KafkaConsumer
 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG：Kafka服务器地址，作为消费者使用。
 ConsumerConfig.KEY_SERIALIZER_CLASS_CONFIG：key的序列化方式，可以**自定义实现序列化方式**。
 ConsumerConfig.VALUE_SERIALIZER_CLASS_CONFIG：value的序列化方式，可以**自定义实现序列化方式**。
 ConsumerConfig.GROUP_ID_CONFIG：消费者组的ID。
-- subscribe(Pattern reg)：订阅对应正则表达式下的主题，当然可以订阅多个。
-- assign(List\<TopicPartiton\> topicPartitions)：订阅一个topic的某些分区。
-- poll(Duration timeout)：多长时间去抓取消息记录，获取一个ConsumerRecord消息。
+> - subscribe(Pattern reg)：订阅对应正则表达式下的主题，当然可以订阅多个。
+> - assign(List\<TopicPartiton\> topicPartitions)：订阅一个topic的某些分区。
+> - poll(Duration timeout)：多长时间去抓取消息记录，获取一个ConsumerRecord消息。
 
 ### ProducerInterceptor
-- onSend(ProducerRecord record)：用户在向topic中投递信息后可以进行一些处理。
-- onAcknowledgement(RecordMetaData data, Exception ex)：data是发送成功时的topic消息处理的回调信息。
-- close()：不咋用
-- configure(Map\<String, ?\> configures)：不咋用
+> - onSend(ProducerRecord record)：用户在向topic中投递信息后可以进行一些处理。
+> - onAcknowledgement(RecordMetaData data, Exception ex)：data是发送成功时的topic消息处理的回调信息。
+> - close()：不咋用
+> - configure(Map\<String, ?\> configures)：不咋用
 
 ## Kafka高级API
 
@@ -63,7 +63,7 @@ Kafka消费者在消费数据的时候默认会定期的提交消费的偏移量
 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG：手动去配置offset的提交方式，默认是latest。
 ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG：offset的自动提交间隔，默认是5s。
 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG：是否开启自动提交，默认是true。
-- commitAsync(Map\<TopicPartition, OffsetAndMetadata\> offsets, OffsetCommitCallback callback)：异步手动提交偏移量信息。
+> - commitAsync(Map\<TopicPartition, OffsetAndMetadata\> offsets, OffsetCommitCallback callback)：异步手动提交偏移量信息。
 
 ### Ackes&Retries
 Kafka生产者在发送完一个消息后，要求Broker在规定的时间内应答Ack，如果没有应答，那么Kafka生产者会尝试在n次内重新发送消息。
@@ -117,11 +117,11 @@ Kafka事务与数据库事务不太一样的地方：当事务失败时，数据
 ProducerConfig.TRANSACTIONAL_ID_CONFIG：生产者事务ID配置，必须保证全局唯一。(否则相同的ID中只会有一个生效)
 ProducerConfig.BATCH_SIZE_CONFIG：批处理大小，同一个事务内最多可以处理的消息个数。默认是16384。
 ProducerConfig.LINGER_MS_CONFIG：最大等待时间间隔，如果时间到了数量没有达到最大允许的批处理数量，直接执行。
-- initTransactions()：初始化事务配置。
-- beginTransaction()：开启事务。
-- commitTransaction()：提交事务。
-- abortTransaction()：终止事务。
-- sendOffsetsToTransaction(Map\<TopicPartition, OffsetAndMetadata\> offsets, String groupId)：提交消费者的偏移量。
+> - initTransactions()：初始化事务配置。
+> - beginTransaction()：开启事务。
+> - commitTransaction()：提交事务。
+> - abortTransaction()：终止事务。
+> - sendOffsetsToTransaction(Map\<TopicPartition, OffsetAndMetadata\> offsets, String groupId)：提交消费者的偏移量。
 
 #### KafkaConsumer
 ConsumerConfig.ISOLATION_LEVEL_CONFIG：读的事务隔离级别，开启事务后一定要设置为read_committed，不然等于没开。

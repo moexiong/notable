@@ -2,15 +2,15 @@
 attachments: [Clipboard_2021-05-12-23-10-24.png, Clipboard_2021-05-12-23-17-37.png, Clipboard_2021-05-12-23-20-15.png, Clipboard_2021-05-12-23-23-01.png, Clipboard_2021-05-12-23-41-40.png]
 title: Kafka 进阶知识
 created: '2021-05-12T14:36:42.827Z'
-modified: '2021-05-12T16:10:04.497Z'
+modified: '2021-05-12T16:26:36.801Z'
 ---
 
 # Kafka 进阶知识
 
 ## Kafka 名词解释
-- HW(High Watermarker)：高水位线。所有HW之前的数据都理解为是已经备份的，当所有节点都备份成功，Leader会更新水位线。
-- ISR(In-Sync-Replicas)：正在同步中的副本。Kafka的Leader会维护一份处于同步的副本集合，如果在`replica.lag.time.max.ms`时间内系统没有发送fetch请求，或者依然在发送请求，但是在该限定时间内没有赶上Leader的数据就会被踢出ISR列表。(0.9.0后已废弃的配置：`replica.lag.max.messages`消息个数限定，这个会导致其他Broker节点频繁加入和退出ISR)
-- LEO(Log End Offset)：日志标识。log and offset标识的是每个分区中最后一条消息的下一个位置，分区中的每个副本都有自己的LEO。
+> - HW(High Watermarker)：高水位线。所有HW之前的数据都理解为是已经备份的，当所有节点都备份成功，Leader会更新水位线。
+> - ISR(In-Sync-Replicas)：正在同步中的副本。Kafka的Leader会维护一份处于同步的副本集合，如果在`replica.lag.time.max.ms`时间内系统没有发送fetch请求，或者依然在发送请求，但是在该限定时间内没有赶上Leader的数据就会被踢出ISR列表。(0.9.0后已废弃的配置：`replica.lag.max.messages`消息个数限定，这个会导致其他Broker节点频繁加入和退出ISR)
+> - LEO(Log End Offset)：日志标识。log and offset标识的是每个分区中最后一条消息的下一个位置，分区中的每个副本都有自己的LEO。
 
 ### Kafka 高水位
 Kafka中的Topic被分为多个分区，分区是按照Segments存储文件块。分区日志是存储在磁盘上的日志序列，Kafka可以保证分区里的事件是有序的。其中Leader负责对应分区的读写，Follower负责同步分区的数据。但是在**0.11前，使用HW保证数据的同步，但是基于HW的数据同步可能会导致数据的不一致或者是乱序**。
@@ -53,11 +53,11 @@ Epoch解决高水平截断问题（0.11+之后的改进）
 >
 > Leader -> Follower：如果需要从本地的Leader Epoch Sequence加载数据，将数据存储在内存中，给相应的分区的Leader发送Epoch请求，该请求包含最新的EpochID，Start Offset信息(历史信息)。Leader接收到信息以后返回该EpochID所对应的Last Offset信息。该信息可能是最新的EpochID的Start Offset或者是当前EpochID的Log End Offset信息。
 
-### Kafka Eagle
+## Kafka Eagle
 Kafka监视系统，在github上直接安装Kafka-eagle-web就可以。
 [Kafka-Eagle Github](https://github.com/smartloli/kafka-eagle/)
 
 
-### 小结
+## 小结
 1. 高水位截断的问题？
 > 主要是0.11版本之前，会发生数据丢失和不一致的问题。主要发生在同步过程。（0.11+版本epoch已解决）
