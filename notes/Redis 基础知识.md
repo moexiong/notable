@@ -1,8 +1,8 @@
 ---
-attachments: [Clipboard_2021-05-23-18-38-23.png, Clipboard_2021-05-23-19-00-26.png, Clipboard_2021-05-23-19-12-26.png, Clipboard_2021-05-23-19-36-03.png, Clipboard_2021-05-23-23-11-31.png, Clipboard_2021-05-24-23-50-32.png, Clipboard_2021-05-25-00-44-18.png, Clipboard_2021-05-25-20-54-12.png, Clipboard_2021-05-25-21-38-25.png]
+attachments: [Clipboard_2021-05-23-18-38-23.png, Clipboard_2021-05-23-19-00-26.png, Clipboard_2021-05-23-19-12-26.png, Clipboard_2021-05-23-19-36-03.png, Clipboard_2021-05-23-23-11-31.png, Clipboard_2021-05-24-23-50-32.png, Clipboard_2021-05-25-00-44-18.png, Clipboard_2021-05-25-20-54-12.png, Clipboard_2021-05-25-21-38-25.png, Clipboard_2021-05-26-22-46-18.png, Clipboard_2021-05-27-00-04-16.png, Clipboard_2021-05-27-00-36-32.png, Clipboard_2021-05-27-00-52-39.png]
 title: Redis 基础知识
 created: '2021-05-20T12:14:49.968Z'
-modified: '2021-05-25T15:52:58.288Z'
+modified: '2021-05-26T16:57:24.562Z'
 ---
 
 # Redis 基础知识
@@ -103,7 +103,7 @@ RAW字符串示意：
 
 ### 列表对象（List）
 列表对象可支持的存储格式有2种：
-> - OBJ_ENCODING_ZIPLIST：当列表中对象少（小于512个），仅有INT或短字符串(小于64bytes)时，使用压缩列表。
+> - OBJ_ENCODING_ZIPLIST：当列表中对象少（小于128个），仅有INT或短字符串(小于64bytes)时，使用压缩列表。
 > - OBJ_ENCODING_QUICKLIST：当列表中的对象多，或字符串类型长，变动频繁时，用快速压缩列表。
 
 #### OBJ_ENCODING_ZIPLIST
@@ -233,19 +233,87 @@ typedef struct dictEntry {
 > - OBJ_ENCODING_ZIPLIST：压缩列表，同上所述。
 > - OBJ_ENCODING_SKIPLIST：跳跃表，类似于B*树，底层是一个双向链表，上层单向链表。
 
-#### OBJ_ENCODING_ZIPLIST
-与列表对象的ZIPLIST一致。
-
 #### OBJ_ENCODING_SKIPLIST
 跳跃表的结构定义如下：
-6.2.3没找到？
+```c
+typedef struct zskiplist {
+    struct zskiplistNode *header, *tail; // 跳跃表 头节点指针 尾节点指针
+    unsigned long length; // 跳跃表的长度
+    int level; // 跳跃表层数
+} zskiplist;
 
-
+typedef struct zskiplistNode {
+    sds ele; // 直接存储字符串值的数据
+    double score; // 存储排序的分值
+    struct zskiplistNode *backward; // 后退指针，只能指向当前节点最底层的前一个节点，头节点和第一个节点—backward指向NULL，从后向前遍历跳跃表时使用。
+    struct zskiplistLevel {
+        struct zskiplistNode *forward; // 指向本层下一个节点，尾节点的forward指向NULL
+        unsigned int span; // forward指向的节点与本节点之间的元素个数。span值越大，跳过的节点个数越多
+    } level[]; // 为柔性数组。每个节点的数组长度不一样，在生成跳跃表节点时，随机生成一个1～64的值，值越大出现的概率越低。
+} zskiplistNode;
+```
+跳跃表示意：
+![跳跃表示意](@attachment/Clipboard_2021-05-26-22-46-18.png)
+> 1. **允许score重复，由ele数据内容来唯一标识一份数据**。只有底层是双向链表，可以看做是level[0]的逆向链表。
+> 2. 有序，且能快速查找列表中的元素，O(logN)的时间复杂度。
+> 3. 插入和删除节点不会引起大范围的自平衡，只影响相邻节点。
 
 ### 哈希对象（Hash）
 哈希对象可支持的存储格式有2种：
 > - OBJ_ENCODING_ZIPLIST：压缩列表，同上所述。
 > - OBJ_ENCODING_HT：字典，同上所述。
+
+### 流对象（Stream）
+流对象只有一种存储编码格式：
+> - OBJ_ENCODING_STREAM：消息流，配合rax基数树（前缀树）一起使用
+
+#### OBJ_ENCODING_STREAM
+```c
+typedef struct stream {
+    rax *rax; // 存储生产者生产的具体消息，以消息ID为key，内容存储在rax中，rax中可以存储多个消息。
+    uint64_t length; // 当前stream中的消息个数
+    streamID last_id;  // 当前stream最后插入的消息ID，stream为空时等于0
+    rax *cgroups; // 存储了当前stream的消费者组，rax中：name -> streamCG
+} stream;
+
+typedef struct streamID { // 消息ID（感觉有kafka那味了）
+    uint64_t ms; // 以unix time的ms单位的时间戳
+    uint64_t seq; // 序号
+} streamID;
+
+typedef struct rax {
+    raxNode *head; // 指向头节点的指针
+    uint64_t numele; // 元素个数（即key的个数）
+    uint64_t numnodes; // 节点个数
+} rax;
+
+typedef struct raxNode {
+    uint32_t iskey:1; // 节点是否包含了key，0=没有，1=包含key
+    uint32_t isnull:1; // 节点的value是否为null，云数据只有key，没有value。
+    uint32_t iscompr:1; // 节点是否被压缩，多个相同前缀合并
+    uint32_t size:29; // 节点的大小，即存储的字符数
+
+    /* iscompr=0：非压缩模式下，数据格式是：[header strlen=0][abc][a-ptr][b-ptr][c-ptr](value-ptr?)，
+     *   有size个字符，紧跟着是size个指针，指向每个字符对应的下一个节点。size个字符之间互相没有路径联系。
+     * iscompr=1：压缩模式下，数据格式是：[header strlen=3][xyz][z-ptr](value-ptr?)，
+     *   只有一个指针，指向下一个节点。size个字符是压缩字符片段
+     */
+    unsigned char data[];
+} raxNode;
+```
+前缀树示意：
+![前缀树示意](@attachment/Clipboard_2021-05-27-00-04-16.png)
+> 从左向右依次为，未压缩的rax树，压缩后的rax树，新增节点后的rax树变化。每个节点内容只存储压缩后的字符，当树出现分支时，由标记iscompr来标识当前data内容为非压缩节点，每个字符都有子节点（所以这就是为什么加入first之后，会有一个(fo) [o]出现，不合并到前面的分支或后面的分支，如果中间有超过一个的字符出现，那么也是会压缩的）。插入元素会导致节点分裂，同理，删除元素时又会再次将相同前缀的节点压缩。
+
+所以上述最后一张图的内存结构如下所示：
+![前缀树内存结构](@attachment/Clipboard_2021-05-27-00-36-32.png)
+> 1. **没有被压缩的节点，每个值都有一个子节点**。
+> 2. 普通节点的iskey=0，isnull=1。表明当前节点不是实际值，只有最后一个节点才是，它的iskey=1，isnull=0。
+> 3. 被压缩的节点只有最后一个值作为指向子节点的指针。
+
+Stream示意：
+![Stream示意](@attachment/Clipboard_2021-05-27-00-52-39.png)
+> 1. rax最后一个值另外充当了listpack的指针，标识当前key指向的消息流的实际内容。
 
 ## 参考资料
 Redis 6.2.3源码
@@ -255,3 +323,6 @@ Redis 6.2.3源码
 [Redis五种数据类型详解](https://www.cnblogs.com/qmillet/p/12494469.html)
 [Redis数据结构——快速列表(quicklist)](https://www.cnblogs.com/hunternet/p/12624691.html)
 [Redis数据结构——dict（字典）](https://blog.csdn.net/cxc576502021/article/details/82974940)
+[Redis radix tree源码解析](https://zhuanlan.zhihu.com/p/64307643)
+[带你读《Redis 5设计与源码分析》之三：跳　跃　表](https://developer.aliyun.com/article/727242)
+[Redis5设计与源码分析 (第8章　Stream)](https://www.cnblogs.com/coloz/p/13812840.html)
